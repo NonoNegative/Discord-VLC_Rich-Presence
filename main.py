@@ -17,6 +17,7 @@ VLC_PATH = os.getenv("VLC_PATH")
 DEFAULT_LARGE_IMAGE_URL = os.getenv("DEFAULT_LARGE_IMAGE_URL", "vlc")
 STOPPED_ICON = os.getenv("STOPPED_ICON", "stopped")
 PLAYING_ICON = os.getenv("PLAYING_ICON", "playing")
+PAUSED_ICON = os.getenv("PAUSED_ICON", "paused")
 STRIP_WORDS = [w.strip() for w in os.getenv("STRIP_WORDS", "").split(",") if w.strip()]
 
 # Global variable to prevent concurrent uploads
@@ -168,15 +169,16 @@ def main():
             art_path = decoded_path
         elif art_path:
             art_path = unquote(art_path)
-        # Timing fix
+        # Timing fix and state handling
         start = end = None
-        if status and status.get("state") == "playing":
+        vlc_state = status.get("state") if status else None
+        if vlc_state == "playing":
             position = status.get("time", 0)
             duration = status.get("length", 0)
             now = int(time.time())
             start = now - position
             end = start + duration
-        if (title != last_title or artist != last_artist or album != last_album or art_path != last_art_path or start != last_start or end != last_end):
+        if (title != last_title or artist != last_artist or album != last_album or art_path != last_art_path or start != last_start or end != last_end or vlc_state):
             # Strip configured words from title
             stripped_title = title if title else None
             if stripped_title:
@@ -192,14 +194,23 @@ def main():
                 update_args = dict(details=details, large_image=large_image_url, large_text="VLC Media Player")
                 if state:
                     update_args["state"] = state
-                if start and end and duration > 0:
+                # Handle playing/paused time and icon
+                if vlc_state == "playing" and start and end and duration > 0:
                     update_args["start"] = start
                     update_args["end"] = end
-                if large_image_url == DEFAULT_LARGE_IMAGE_URL:
-                    update_args["small_image"] = PLAYING_ICON
+                    if large_image_url == DEFAULT_LARGE_IMAGE_URL:
+                        update_args["small_image"] = PLAYING_ICON
+                elif vlc_state == "paused":
+                    update_args["small_image"] = PAUSED_ICON
+                    update_args["small_text"] = "Paused"
+                    update_args.pop("start", None)
+                    update_args.pop("end", None)
+                else:
+                    if large_image_url == DEFAULT_LARGE_IMAGE_URL:
+                        update_args["small_image"] = PLAYING_ICON
                 try:
                     rpc.update(**update_args)
-                    print(f"[INFO] Now playing: {details} {'-' if state else ''} {state if state else ''}")
+                    print(f"[INFO] Now playing: {details} {'-' if state else ''} {state if state else ''} [{vlc_state}]")
                 except Exception as e:
                     print(f"[ERROR] Failed to update Rich Presence: {e}")
             else:
