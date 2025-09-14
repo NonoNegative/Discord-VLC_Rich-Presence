@@ -17,6 +17,7 @@ VLC_PATH = os.getenv("VLC_PATH")
 DEFAULT_LARGE_IMAGE_URL = os.getenv("DEFAULT_LARGE_IMAGE_URL", "vlc")
 STOPPED_ICON = os.getenv("STOPPED_ICON", "stopped")
 PLAYING_ICON = os.getenv("PLAYING_ICON", "playing")
+STRIP_WORDS = [w.strip() for w in os.getenv("STRIP_WORDS", "").split(",") if w.strip()]
 
 # Global variable to prevent concurrent uploads
 currently_uploading = False
@@ -84,7 +85,7 @@ def get_album_art_url(album, art_path):
         art_url = upload_to_uguu(art_path)
         art_cache[album] = art_url
         save_art_cache(art_cache)
-        print(f"Album art uploaded and cached.")
+        print(f"Album art uploaded and cached at {art_url}.")
         return art_url
     except Exception as e:
         print(f"Album art upload failed: {e}")
@@ -142,7 +143,14 @@ def main():
     launch_vlc()
     time.sleep(2)  # Give VLC time to start
     rpc = Presence(DISCORD_CLIENT_ID)
-    rpc.connect()
+    while True:
+        try:
+            rpc.connect()
+            break
+        except Exception as e:
+            print(f"[ERROR] Could not connect to Discord: {e}")
+            print("Retrying in 10 seconds...")
+            time.sleep(10)
     print("[INFO] Discord Rich Presence started.")
     last_title = last_artist = last_album = last_art_path = None
     last_start = last_end = None
@@ -169,7 +177,13 @@ def main():
             start = now - position
             end = start + duration
         if (title != last_title or artist != last_artist or album != last_album or art_path != last_art_path or start != last_start or end != last_end):
-            details = f"{title}" if title else None
+            # Strip configured words from title
+            stripped_title = title if title else None
+            if stripped_title:
+                for word in STRIP_WORDS:
+                    if word:
+                        stripped_title = stripped_title.replace(word, "")
+            details = f"{stripped_title}" if stripped_title else None
             state = f"{artist}" if artist else None
 
             # Only update if details is not None
@@ -185,6 +199,7 @@ def main():
                     update_args["small_image"] = PLAYING_ICON
                 try:
                     rpc.update(**update_args)
+                    print(f"[INFO] Now playing: {details} {'-' if state else ''} {state if state else ''}")
                 except Exception as e:
                     print(f"[ERROR] Failed to update Rich Presence: {e}")
             else:
@@ -198,6 +213,7 @@ def main():
                 )
                 try:
                     rpc.update(**update_args)
+                    print("[INFO] VLC is stopped or no song info available. Updated to idle status.")
                 except Exception as e:
                     print(f"[ERROR] Failed to update Rich Presence: {e}")
             last_title, last_artist, last_album, last_art_path, last_start, last_end = title, artist, album, art_path, start, end
