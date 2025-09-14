@@ -19,7 +19,7 @@ This project binds Discord and VLC Media Player to display your currently playin
 Clone this project to your local machine:
 
 ```sh
-git clone git@github-nononegative:NonoNegative/Discord-VLC_Rich-Presence.git
+git clone git@github.com:NonoNegative/Discord-VLC_Rich-Presence.git
 cd Discord-VLC_Rich-Presence
 ```
 
