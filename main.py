@@ -6,6 +6,7 @@ import json
 from pypresence import Presence
 from dotenv import load_dotenv
 from urllib.parse import unquote, urlparse
+from colorama import init, Fore, Style
 
 # --- CONFIGURATION ---
 load_dotenv()
@@ -19,6 +20,9 @@ STOPPED_ICON = os.getenv("STOPPED_ICON", "stopped")
 PLAYING_ICON = os.getenv("PLAYING_ICON", "playing")
 PAUSED_ICON = os.getenv("PAUSED_ICON", "paused")
 STRIP_WORDS = [w.strip() for w in os.getenv("STRIP_WORDS", "").split(",") if w.strip()]
+
+# Initialize colorama
+init(autoreset=True)
 
 # Global variable to prevent concurrent uploads
 currently_uploading = False
@@ -96,7 +100,7 @@ def get_album_art_url(album, art_path):
 
 def launch_vlc():
     if not VLC_PATH or not os.path.exists(VLC_PATH):
-        print(f"[ERROR] VLC executable not found at: {VLC_PATH}")
+        print(Fore.RED + Style.BRIGHT + f"[ERROR] VLC executable not found at: {VLC_PATH}")
         return
     cmd = [
         VLC_PATH,
@@ -105,7 +109,7 @@ def launch_vlc():
         f"--http-port={VLC_HTTP_PORT}",
         f"--http-password={VLC_HTTP_PASSWORD}"
     ]
-    print("Launching VLC with HTTP interface...")
+    print(Fore.CYAN + Style.BRIGHT + "Launching VLC with HTTP interface...")
     subprocess.Popen(cmd)
 
 def get_vlc_status():
@@ -149,10 +153,10 @@ def main():
             rpc.connect()
             break
         except Exception as e:
-            print(f"[ERROR] Could not connect to Discord: {e}")
-            print("Retrying in 10 seconds...")
+            print(Fore.RED + Style.BRIGHT + f"[ERROR] Could not connect to Discord: {e}")
+            print(Fore.YELLOW + "Retrying in 10 seconds...")
             time.sleep(10)
-    print("[INFO] Discord Rich Presence started.")
+    print(Fore.GREEN + Style.BRIGHT + "[INFO] Discord Rich Presence started.")
     last_title = last_artist = last_album = last_art_path = None
     last_start = last_end = None
 
@@ -210,9 +214,9 @@ def main():
                         update_args["small_image"] = PLAYING_ICON
                 try:
                     rpc.update(**update_args)
-                    print(f"[INFO] Now playing: {details} {'-' if state else ''} {state if state else ''} [{vlc_state}]")
+                    print(Fore.GREEN + Style.BRIGHT + f"[INFO] Now playing: {details} {'-' if state else ''} {state if state else ''} [{vlc_state}]")
                 except Exception as e:
-                    print(f"[ERROR] Failed to update Rich Presence: {e}")
+                    print(Fore.RED + Style.BRIGHT + f"[ERROR] Failed to update Rich Presence: {e}")
             else:
                 # Update with stopped/idle state
                 update_args = dict(
@@ -224,12 +228,12 @@ def main():
                 )
                 try:
                     rpc.update(**update_args)
-                    print("[INFO] VLC is stopped or no song info available. Updated to idle status.")
+                    print(Fore.YELLOW + Style.BRIGHT + "[INFO] VLC is stopped or no song info available. Updated to idle status.")
                 except Exception as e:
-                    print(f"[ERROR] Failed to update Rich Presence: {e}")
+                    print(Fore.RED + Style.BRIGHT + f"[ERROR] Failed to update Rich Presence: {e}")
             last_title, last_artist, last_album, last_art_path, last_start, last_end = title, artist, album, art_path, start, end
         time.sleep(5)
 
 if __name__ == "__main__":
-    print(f"Make sure VLC is installed at {VLC_PATH}")
+    print(Fore.CYAN + Style.BRIGHT + f"Make sure VLC is installed at {VLC_PATH}")
     main()
