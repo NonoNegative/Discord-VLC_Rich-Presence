@@ -25,7 +25,7 @@ currently_uploading = False
 
 def upload_to_uguu(filepath: str) -> str:
     """Upload file to uguu and return the URL"""
-    url = "https://uguu.hardbucks.net/upload?output=json"
+    url = "https://uguu.se/upload?output=json"
     with open(filepath, "rb") as f:
         files = {"files[]": f}
         response = requests.post(url, files=files)
